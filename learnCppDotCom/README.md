@@ -61,6 +61,12 @@ if you have some unused variables then the compiler will give you warning to rem
 
     [[maybe_unused]] int var1;
 
+a similar keyword was introduced which is `[[fallthrough]]` which can be used to indicate that break statement in a switch was not added intentionaly
+
+    case 1:
+      dosomething();
+      [[fallthrough]];
+
 ---
 
 ### Intro to iostream: cout, cin
@@ -348,4 +354,339 @@ Another, simpler option is to use **#pragma once**, which tells the compiler to 
 - For C++ standard headers, use `#include <iostream>`, which searches standard system directories first.
 
 ---
-## Chapter-2:
+## Chapter-2: types
+![type list](typeslist.PNG)
+The reason there is minimum size and typical size is because these doesn't gaurantee a fix width of a type it can only gaurantee a minimum width. this comes from old C days where memory was limited 
+
+![range list](range.PNG)
+mathmatical formul for this range is generally -(2^n-1) to (2^n-1)-1
+
+
+**unsigned integer** overlfows and underflows is defined by the C++ standard to wrap around. how this wrapping is done is sometimes refers to modulo wrapping where the final value is moduloed by max value and remainder is stored as result
+
+**signed integer** overlfows and underflows in C++ are not defined by the C++ standard generally in most platforms and most Compiler it wraps around to the opposite end but since its not defined by the standard it is known as undefined behaviour
+
+--- 
+### Fix width types
+![fix width table](fixwidth.PNG)
+
+C++11 provides an alternate set of integer types that are guaranteed to be the same size on any architecture. Because the size of these integers is fixed, they are called fixed-width integers
+
+The fixed-width integers actually don’t define new types -- they are just aliases for existing integral types with the desired size. For each fixed-width type, the implementation (the compiler and standard library) gets to determine which existing type is aliased. As an example, on a platform where int is 32-bits, std::int32_t will be an alias for int. On a system where int is 16-bits (and long is 32-bits), std::int32_t will be an alias for long instead.
+
+`std::uint_fast#_t`
+`std::int_fast#_t`
+these two are alternative types of integers which guarantee to give the fastest integer type with width of atleast # bits (it can be more if the wider width is faster),
+fastest becuase some architecture may process specific width of integer faster than other width
+
+aside from this we generally avoid this fast and least integer types and use either treditional int or fixed-wdith integer
+> int8_t, uint8_t, int_least8_t, uint_fast8_t etc typically behave like chars 
+
+**std::size_t** is an alias for an implementation-defined unsigned integral type. In other words, the compiler decides if std::size_t is an unsigned int, an unsigned long, an unsigned long long, etc…
+
+in C++ by default floating point literals like `5.9` etc are of type double for floating point lietrals of float type you have to write `5.9f `
+
+ ---
+ ### Other types
+**Boolean** in C++ boolean is stored as either number 1 or 0 to indicate true or false, and by default std::cin for boolean only take numbers as input
+
+    bool x;
+    bool a {1}    // ok
+    bool y { 3 }; // error narrowing conversion not allowed
+    bool z = 3;   // ok, copy initialization implicitly converts
+    std::cin>>x   // lets say input is "true" or 'h'
+    std::cout<<x  // 0 is output becuase t or h is character and cin failed resulting x to be init as 0
+
+if we want std::cin to take true or false as input and std::cout to print true or false we can use io manipulators like <br>
+`std::cout << std::boolalpha`<br>
+`std::cin >> std::boolalpha`
+
+**char** : single characters taking character input is a little bit tricky
+
+as we know how std::cin is buffered and skips tabs and spaces so 
+
+    int main()    {
+        std::cout << "Input a keyboard character: "; // assume the user enters "a b" (without quotes)
+
+        char ch{};
+        std::cin >> ch; // extracts a, leaves " b\n" in stream
+        std::cout << "You entered: " << ch << '\n';
+
+        std::cin >> ch; // skips leading whitespace (the space), extracts b, leaves "\n" in stream
+        std::cout << "You entered: " << ch << '\n';
+
+        return 0;
+    }
+as we know above code won't even ask for input second time becuase buffer will be filled with a b so first it will assign a then skip white space to assign b
+
+to take space as input we can use `std::cin.get()`, this can take space as input
+
+`wchar_t`, `char8_t`, `char16_t`, and `char32_t`
+are also some of char types, char#_t explicitily states the utf encoding system like char8_t is for utf-8 and char32_t is for utf-32 they can be used to support extra characters other than ASCII 
+
+`wchar_t` on the other hand is older and was used to handle wider character and it is platform dependedent, UTF-16 on Windows, often UTF-32 on Linux, hence we should avoid it
+
+*static_cast<datatype>() can be used to change the datatype of value, it works by taking an input and returning the input as a specified type*
+
+---
+**Type qualifier** it is a keyword that applies to a type and modify how that type behave, there are two type qualifiers in C++ **const** and **volatile**
+
+const as we know is a type qualifiers that restricts the modification of variable, const should always be used whenever you can becuase it tells compiler that this variable will never change which can help the compiler to apply some optimization
+
+macros can also be used to create named constant but it is discouraged becuase const is scoped whereas macros are global and may cause conflicts
+> theres no need to use const in function paramter where object is passed by value becuase it is temperory
+
+similary to const volatile tells compiler that this object's value may change, this disables some optimization<br>
+volatile is rarely no need to remember it
+
+**As-if rule**; the rule say that the compiler can modify a program however it likes in order to produce more optimized code, so long as those modfications do not affect a program's observable behaviour
+
+**compile tile evaluation**
+: allows the compiler to do work at compile time that would other wise be done ar runtine 
+- constant folding: when compiler replaces expressions that have literal operands with the result of expressoin
+
+        int x { 3 + 4 }; // 7 would be computed on compile time and 3 + 4 replaced with 7
+
+- constant progrpogation: in this technique compiler replaces variables known to have constant values with their values. this can reduce the no. of time memory is fetched which can reduce execution time
+
+        int x { 7 }
+        std::cout << x; // x would be replaced with 7 at compile time
+
+- Dead code elimination: compiler removes code has no effect on program's behavior
+    
+        int x{7};
+        std::cout<<7 // x is removed 
+
+this is the reason making anything const which can be const is good practice because it helps compiler to identify constant
+
+---
+
+### constexpr
+
+**constant expression** : it is a non-empty sequence of literals, const variables, operators, and function calls all of which must be evaluateable at compile time 
+
+things which can't be used in a constant expression
+- non-const variables
+- const non-integral variables, 
+- return values of no-constexpr functions
+- funcion paramteres
+- operators new, delete, throw etc
+
+any expression containing any of the above is runtime expression
+
+**Constexpr** : keyword used to create variables that can be used in constant expressions, as a result contexpr variable must be initialized with a constant expression, otherwise compiler will give error 
+
+while contexpr variables are implicity const. const variables are not implicityly constexpr (except for const integral variables with a constant expression intializer)
+
+best practice
+- any constant variable whose intializer is a constant expression whouls be declared as constexpr
+- any constant variable whose initializer is not a constant expression should be declared as const
+- type that are not fully compatible with constexpr. for constant object of these types either use const or pick a different type that is constexpr compatible
+
+**constexpr function** : a fucntion that can be called in a constant expression. it must evaluate at compile time. to be eligible for compile time execution, all arguments must be constant expression
+
+    #include <iostream>
+
+    int max(int x, int y) // this is a non-constexpr function{
+        return x > y;
+    }
+
+    constexpr int cmax(int x, int y) // this is a constexpr function{
+        return x > y;
+    }
+
+    int main()
+    {
+        int m1 { max(5, 6) };            // ok
+        const int m2 { max(5, 6) };      // ok
+        constexpr int m3 { max(5, 6) };  // compile error: max(5, 6) not a constant expression
+
+        int m4 { cmax(5, 6) };           // ok: may evaluate at compile-time or runtime
+        const int m5 { cmax(5, 6) };     // ok: may evaluate at compile-time or runtime
+        constexpr int m6 { cmax(5, 6) }; // okay: must evaluate at compile-time
+
+        return 0;
+    }
+
+**constexpr if condition**
+we can use this keyword with if statments if the condition is constexpr too it will help compiler to optimize away the if else condition with the statment which will execute
+
+    int main(){
+        constexpr double gravity{ 9.8 };
+
+        if constexpr (gravity == 9.8) // now using constexpr if
+            std::cout << "Gravity is normal.\n";
+        else
+            std::cout << "We are not on Earth.\n";
+
+        return 0;
+    }
+
+## strings
+**std::string** : alternate to c-style string and easier to work with 
+
+as we know cin >> skips spaces and store elements in buffere seperated by spaces meaning we can't store strings with spaces using cin >> <br>
+we can use `std::getline()` to read full line of test, it takes two input first is std::cin, second is the variable in which we want to store the string
+
+std::getline(std::cin >> std::ws, name);
+
+std::ws is input manipulator which tells cin to ignore any leading whitespace character (spaces, tabs, newlines) 
+since std::ws is not preserved across call so it must be used everytime with getline()
+
+for creating a std::string type literal instead of c-style literal we can use 's' suffix which lives in namespace std::literals::string_lieterals like `"hello"s` 
+
+*always avoid passing string by value if possible as std::string initialization is expensive*
+
+**std::string_view** : to address the issue with std::string being expensive to intialize, C++17 introduces string_view which provides read-only acess to and existing string without making a copy
+
+string_view can be initialized with many different types of string
+
+    std::string_view s1 { "Hello, world!" }; // initialize with C-style string literal
+
+    std::string s{ "Hello, world!" };
+    std::string_view s2 { s };  // initialize with std::string
+   
+    std::string_view s3 { s2 }; // initialize with std::string_view
+
+although any king of string is implicitly convertable to string_view opposit is not true
+
+we can't do <br>
+
+    void printString(std::string str);
+
+    std::string_view sv { "hello" };
+    std::string { sv } // ok can be initialized with string_view initializer
+    printString(sv); // compiler error
+    printString(static_cast<std::string>(sv)) // ok
+
+since std::string_view can't be modified, when we assign a different value to it it just start viewing a differnt string, this concept of std::string and std::string_view is related to owner vs viewer concept 
+
+unlike std::string, std::string_view is has support for constexpr
+
+*A std::string_view that is viewing a string that has been destroyed is sometimes called a dangling view.*
+
+    std::string_view name { "Alex"s }; // "Alex"s creates a temporary std::string
+    std::cout << name << '\n'; // undefined behavior
+
+**view modification functions** : consider example 
+std::string_view str{ "Peach" };
+	std::cout << str << '\n'; // Peach
+
+	// Remove 1 character from the left side of the view
+	str.remove_prefix(1);
+	std::cout << str << '\n'; // each
+
+	// Remove 2 characters from the right side of the view
+	str.remove_suffix(2);
+	std::cout << str << '\n'; // ea
+
+	str = "Peach"; // reset the view
+	std::cout << str << '\n'; // peach
+
+the two functions are member function which modifies the view of object
+
+---
+
+### External linkage and internal linkage
+Identifiers have a property named **linkage**. linkage defines whether the decleration of the same identifier in different scope refers to the same object or fucntion
+
+- local variables have no linkage they are local to the scope<br>
+- non-const or non-static global variables have external linking by default<br>
+- functions default to external linkage but can be made internal using static keyword
+
+**Global variables** : they are generally defined at the top of file and have global scope or file scope i.e. they are acesseble from anywhere within the file. they are also called static variables as they are created with the program and destroyed with the program
+
+unlike local variables which are uninitialized global varaibles are always zero initialized by default, local variables initial value may vary across different compiler
+
+    int g_x; // holds 0 by defualt
+    void foo(){
+        int foox; // undefined value, can't say
+    }
+
+*note that even tho global variables are called static variables, variables defined by `static` keywords are different they have internal linking as well*
+
+test1.cpp
+    
+    int g_x; // multiple defination error
+    int g_y; // ok 
+
+test2.cpp
+
+    int g_x; // multiple defination error
+    static int g_y; // ok internal linking, it is its own copy
+
+an identifier with internal linking can be seen and used within a single translation unit meaning if we have two variables with same name but internal linking then it won't voilate the one defination rule both are seperate 
+
+an identifier with external linking can be seen andused across multiple files. wait but if by default global variables are external linking then what is the need of extern?
+
+> linking is a step after compilation. just like we have to forward declar an external linking function we also have to forward declare an external linking variable but how do you do it? writing it twice gives multiple defination errors. in this case extern can be useful as forward declaration
+
+test1.cpp
+
+    extern int x; // forward declaration
+    print(x) // printx 5
+
+test2.cpp
+
+    int x = 5; // defined in another file
+
+extern can be used with functions but is it necessary, since compiler can easly detrmine whether a function is a forward declration or defination but for variables we have to use explicity extern to tell compiler the difference
+
+*dont use extern for defination since non-const global variable defination are implicitly extern it will give warning and may even give error*
+
+**inline** : it is a keyword traditionally used with functions to request inline expansion instead of function call, it can either increase performance, decrease performance or don't impact anything it all depends on the context
+
+if a function is small that the invokation time is more than the function execution time then inline will definately help but for bigger function inline may actually hinder the performance as it will expand the function everywhere and increase the executable size
+
+an inline function can't be just declared you must provide its full defination thats why multiple defination of inline functions in different translation unit is actually valid even tho its external linked, you just have to provide identicle body to those multiple definition to avoid undefined behaviour, 
+
+even in header file inline function must be defined thats why its valid to redifine in multiple translation unit as the header file can be included in different files 
+
+C++ 17 introduced inline variables which are same as funtions in regards that they can be defined in multiple files but they must be identicle, they are a good alternative to extern keyword for making a cont/non-const global external linked variables becuase unlike extern where you have to declare and define it, inline variables can just be put in one header file and included everywhere
+
+![scope duration](scopeduration.png)
+![forware declaration](fdecleration.png)
+
+*always try to use inline for const-global external linked variables try to avoid use of non-const global variable as they can be really bad in big projects, however if you must hvae to then use inilne instead of extern*
+
+*all these keywords like exttern, static etc are called storage class specifier meaning that specify the duration and linkage of identifiers*
+
+### using keyword
+
+**qualified and unqualified name**
+qulified names include the associated scope like
+`class.method()`, `scope::foo()`, `ptr->foo()`, `std::cout`
+
+unqualified names don't include the associated scope like
+`count`, `cycleDelay`, `totalTime`, `foo()`
+
+the scope of using keyword behaves same as variables i.e. if it is written within a block then it only applies to that block if it written in namespace or globalspace then it applies to the whole file scope
+
+anonymous or unnamed namespace can be used to make multiple inline objects like functoins and variables, as they have global scope
+
+inline keyword can be used to make a named namespace a global space without affecting the linkage so that you don't have to use name::object to access variables in that namespace this can be used to test new varient of existing functions like so
+
+    namespace V1{ // declare a normal namespace named V1
+        void doSomething(){
+            std::cout << "V1\n";
+        }
+    }
+
+    inline namespace V2{ // declare an inline namespace named V2
+        namespace{ // unnamed namespace
+            void doSomething(){ // has internal linkage
+                std::cout << "V2\n";
+            }
+        }
+    }
+
+    int main()
+    {
+        V1::doSomething(); // calls the V1 version of doSomething()
+        V2::doSomething(); // calls the V2 version of doSomething()
+
+        doSomething(); // calls the inline version of doSomething() (which is V2)
+    }
+
+---
+
